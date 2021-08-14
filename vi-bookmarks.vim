@@ -445,6 +445,7 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 "================ INIT =====================================
 " define the directory for the bookmark-files
 let g:mainFnam = expand("%:t")
+let g:marksFnam = ""
 call Vi_marks_log ("=========== vi-bookmarks.vim fNam = |".g:mainFnam."|")
 
 let g:bmDir = "${HOME}/.vim/bookmarks/"
