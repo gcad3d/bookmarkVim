@@ -35,6 +35,7 @@
 " vi-bookmarks.c   -> vi-bookmarks64              executable (Vi_marks_exe())
 "
 " MODIF:
+" 2021-08-15    enable correct open if mainFile opened via tag (-t) RF.
 " 2021-08-10    RF.
 "=================================================
 
@@ -336,14 +337,16 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
   " get name of file to be loaded
   let a:fNam = expand("%:t")
   let a:bNr = bufnr("%")
+  call Vi_marks_log ("Vi_marks_loadFile0 a:fNam = |".a:fNam."|")
   call Vi_marks_log ("Vi_marks_loadFile0 a:bNr = ".a:bNr)
   call Vi_marks_log ("Vi_marks_loadFile0 g:primBnr = ".g:primBnr)
 
   " exit if buffer != primary-buffer
-  "if a:fNam != g:mainFnam
   if a:bNr != g:primBnr
     return
   endif
+
+  let g:mainFnam = a:fNam
 
   " hide bmk-win if buftype is 'help'
   "call Vi_marks_log ("Vi_marks_loadFile0 buftype = |" . &buftype . "|")
@@ -384,23 +387,28 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_saveFile - file beeing unloaded
 :function Vi_marks_saveFile ()
 
- " do nothing while reLoad bookmark-buffer
- if g:statReadBmf == 1
-   return
- endif
+  let a:bNr = bufnr("%")
+  call Vi_marks_log ("=========== Vi_marks_saveFile a:bNr = |".a:bNr."|")
+  call Vi_marks_log ("Vi_marks_saveFile g:mainFnam = |".g:mainFnam."|")
+
+  " do nothing while reLoad bookmark-buffer
+  if g:statReadBmf == 1
+    return
+  endif
+
+  " exit if no mainFile yet
+  if g:mainFnam == ""
+    return
+  endif
 
  let a:fNam = expand("%:t")
- let a:bNr = bufnr("%")
- call Vi_marks_log ("=========== Vi_marks_saveFile fNam = |".a:fNam."|")
- call Vi_marks_log ("Vi_marks_saveFile g:mainFnam = |".g:mainFnam."|")
+ call Vi_marks_log ("Vi_marks_saveFile fNam = |".a:fNam."|")
  call Vi_marks_log ("Vi_marks_saveFile g:marksFnam = |".g:marksFnam."|")
- call Vi_marks_log ("Vi_marks_saveFile a:bNr = |".a:bNr."|")
  call Vi_marks_log ("Vi_marks_saveFile g:primBnr = |".g:primBnr."|")
  call Vi_marks_log ("Vi_marks_saveFile g:marksBnr = |".g:marksBnr."|")
  call Vi_marks_log ("Vi_marks_saveFile marksStatVis = ".g:marksStatVis)
  call Vi_marks_log ("Vi_marks_saveFile marksStatOpen = ".g:marksStatOpen)
  call Vi_marks_log ("Vi_marks_saveFile statReadBmf = ".g:statReadBmf)
-
 
   " for q in BM-window
   if a:bNr == g:marksBnr
@@ -408,7 +416,6 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
     call Vi_marks_showOff ()
     return
   endif
-
 
   "if a:fNam == g:mainFnam
   if a:bNr == g:primBnr
@@ -444,15 +451,14 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 
 "================ INIT =====================================
 " define the directory for the bookmark-files
-let g:mainFnam = expand("%:t")
-let g:marksFnam = ""
-call Vi_marks_log ("=========== vi-bookmarks.vim fNam = |".g:mainFnam."|")
-
 let g:bmDir = "${HOME}/.vim/bookmarks/"
+call Vi_marks_log ("=========== vi-bookmarks.vim bmDir = |".g:bmDir."|")
 
 " create ~/.vim/bookmarks/ if necessary
 let irc = system("mkdir -p " . g:bmDir)
 
+let g:mainFnam = ""
+let g:marksFnam = ""
 let g:marksBnr = '0'
 let g:marksStatOpen = '0'
 let g:marksStatVis = '0'
