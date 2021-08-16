@@ -35,8 +35,9 @@
 " vi-bookmarks.c   -> vi-bookmarks64              executable (Vi_marks_exe())
 "
 " MODIF:
-" 2021-08-15    enable correct open if mainFile opened via tag (-t) RF.
-" 2021-08-10    RF.
+" 2021-08-16  update bookmarks without having to save modified mainfile. RF.
+" 2021-08-15  enable correct open if mainFile opened via tag (-t) RF.
+" 2021-08-10  RF.
 "=================================================
 
 
@@ -309,19 +310,27 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 
 
   if g:marksStatVis == '1'
+
     let g:statReadBmf = 1
-    " goto bookmark-window, reRead
-    "execute ":wincmd j"
-    let cmd1 = ":b ".g:marksBnr
-    execute cmd1
-    "execute ":edit!"
-    let cmd1 = ":e ".g:marksFnam
-    execute cmd1
-    "execute ":setlocal syntax=off"
-    " back into primary window
-    "execute ":wincmd w"
-    let cmd1 = ":b ".g:primBnr
-    execute cmd1
+
+    execute ":wincmd j"
+    execute ":edit!"
+    execute ":wincmd w"
+
+"   " goto bookmark-window, reRead
+"   let cmd1 = ":b ".g:marksBnr
+"   execute cmd1
+"   let cmd1 = ":e ".g:marksFnam
+"   execute cmd1
+"   "execute ":setlocal syntax=off"
+"   " back into primary window
+"   let cmd1 = ":b ".g:primBnr
+"   execute cmd1
+"
+"   "let v1 = "lgetfile " . g:marksFnam
+"   "execute v1
+"   "lopen 6    " 6 = Nr of lines of quickfix-/errorfile
+
     let g:statReadBmf = 0
   endif
 
