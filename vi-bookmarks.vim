@@ -5,29 +5,30 @@
 "g:mainFnam         filename of editfile
 "g:marksFnam        bookMarkfilename (/home/fwork/.vim/bookmarks/t1_c_0)
 "g:marksStatOpen    0 = bookMarkfilename not valid; 1 = g:marksFnam is open;
-"g:marksBnr         0 = bookmark-buffer does not exist; 1 = exists;
 "g:primBnr          bufferNr of primary buffer
+"g:marksBnr         0 = bookmark-buffer does not exist; else exists;
 "g:marksStatVis     0 = bookmark-buffer is hidden; 1 = is visible;
 "
-"Vi_marks_loadFile0      // :281 enter buffer
+":::::::::::::::::::::::::::::::::::::::::::::::::
+"Vi_marks_loadFile0      //      enter buffer
 "
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_showToggle  ("bv")   :122
-"  Vi_marks_load__       // :334 write file vi-bookmarks_fnam, get as g:marksFnam
-"  Vi_marks_showCreate   // :156 create bookmark-buffer
-"  Vi_marks_showOn       // :183 set bookmark-buffer visible
-"  Vi_marks_showOff      // :199 set bookmark-buffer hidden
+"Vi_marks_showToggle  ("bv")                     // view | hide bookmark-window
+"  Vi_marks_load__       //      write file vi-bookmarks_fnam, get as g:marksFnam
+"  Vi_marks_showCreate   //      create bookmark-buffer
+"  Vi_marks_showOn       //      set bookmark-buffer visible
+"  Vi_marks_showOff      //      set bookmark-buffer hidden
 "
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_toggle     ("bb")  :43
+"Vi_marks_toggle     ("bb")               // [create BW and] add active line
 "  Vi_marks_load__
-"  Vi_marks_reRead       // :262
+"  Vi_marks_reRead       //      
 "
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_del        ("bd") :240
+"Vi_marks_del        ("bd")              // delete all bookmarks
 "
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_saveFile          :355
+"Vi_marks_saveFile               
 "
 " g:marksFnam is full-filename; expand("%:t") gives NOT full-filename 
 " - so use bufferNr ..
@@ -35,6 +36,8 @@
 " vi-bookmarks.c   -> vi-bookmarks64              executable (Vi_marks_exe())
 "
 " MODIF:
+" 2025-10-25  autocmd VimLeave added. RF.
+" 2022-12-29  change split -> sview; RF.
 " 2021-08-16  update bookmarks without having to save modified mainfile. RF.
 " 2021-08-15  enable correct open if mainFile opened via tag (-t) RF.
 " 2021-08-10  RF.
@@ -107,9 +110,9 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
   endif
 
   " if bookmark-window is active -
-  let a:bNr = bufnr("%")
-  call Vi_marks_log ("Vi_marks_toggle a:bNr = ".a:bNr)
-  if a:bNr == g:marksBnr
+  let l:bNr = bufnr("%")
+  call Vi_marks_log ("Vi_marks_toggle l:bNr = ".l:bNr)
+  if l:bNr == g:marksBnr
     " go back into mainWindow
     execute ":wincmd w"
   endif
@@ -163,6 +166,7 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showToggle - show/hide bookmarks ("bv")
 :function Vi_marks_showToggle ()
 
+  call Vi_marks_log (". . . . .")
   call Vi_marks_log ("======== Vi_marks_showToggle marksStatOpen ".g:marksStatOpen)
 
   " test if bookMarkfilename is valid
@@ -199,6 +203,7 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
   "call Vi_marks_log (" Vi_marks_showCreate |".g:marksFnam."|")
 
   " open bookmarkfile in new window below with 8 lines
+  "let cmd1 = ":8 sview " . g:marksFnam
   let cmd1 = ":8 split " . g:marksFnam
     call Vi_marks_log (" _showCreate |" . cmd1 . "|")
   execute cmd1
@@ -210,6 +215,7 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
   nnoremap <buffer> <silent> dd :call Vi_marks_toggle()
  " get g:marksBnr = nr of the bookmark-buffer
   let g:marksBnr = bufnr("%")
+   call Vi_marks_log (" Vi_marks_showCreate |".g:marksBnr."| created ..")
   "execute ":setlocal syntax=off"
   execute ":setlocal nomodifiable"
   " back into source-window
@@ -226,7 +232,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
    "call Vi_marks_log (" Vi_marks_showOn |" . g:marksBnr . "|")
 
  if g:marksStatVis == '0'
-   let cmd1 =  ":8 split | buffer " . g:marksBnr
+   "let cmd1 =  ":8 sview | buffer " . g:marksBnr
+   let cmd1 = ":8 split " . g:marksFnam
     "call Vi_marks_log (" _showOn |" . cmd1 . "|")
    execute cmd1
    "execute ":setlocal syntax=off"
@@ -243,12 +250,17 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showOff - hide bookmark-window
 :function Vi_marks_showOff ()
 
-   "call Vi_marks_log (" Vi_marks_showOff |" . g:marksBnr . "|")
-
  if g:marksStatVis == '1'
+   call Vi_marks_log (" Vi_marks_showOff |" . g:marksBnr . "|")
+   " goto bookmarkWindow
+   execute ":wincmd j"
    " hide the bookmarkWindow
-   execute ":bunload " .g:marksBnr
+   let cmd1 =  ":quit!"
+   "let cmd1 =  ":" . g:marksBnr . "quit!"
+   "let cmd1 =  ":bunload! " . g:marksBnr
+   execute cmd1
    let g:marksStatVis = '0'
+   let g:marksBnr = '0'
  endif
 
 :endfunction
@@ -344,18 +356,18 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 :function Vi_marks_loadFile0 ()
 
   " get name of file to be loaded
-  let a:fNam = expand("%:t")
-  let a:bNr = bufnr("%")
-  call Vi_marks_log ("Vi_marks_loadFile0 a:fNam = |".a:fNam."|")
-  call Vi_marks_log ("Vi_marks_loadFile0 a:bNr = ".a:bNr)
+  let l:fNam = expand("%:t")
+  let l:bNr = bufnr("%")
+  call Vi_marks_log ("Vi_marks_loadFile0 l:fNam = |".l:fNam."|")
+  call Vi_marks_log ("Vi_marks_loadFile0 l:bNr = ".l:bNr)
   call Vi_marks_log ("Vi_marks_loadFile0 g:primBnr = ".g:primBnr)
 
   " exit if buffer != primary-buffer
-  if a:bNr != g:primBnr
+  if l:bNr != g:primBnr
     return
   endif
 
-  let g:mainFnam = a:fNam
+  let g:mainFnam = l:fNam
 
   " hide bmk-win if buftype is 'help'
   "call Vi_marks_log ("Vi_marks_loadFile0 buftype = |" . &buftype . "|")
@@ -371,14 +383,14 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_load - new file to be used; called when bmk-win comes up
 :function Vi_marks_load__ ()
 
-  "let a:fNam = expand("%:t")
-  let a:bNr = bufnr("%")
-  call Vi_marks_log ("=========== Vi_marks_load__ a:bNr ".a:bNr."")
+  "let l:fNam = expand("%:t")
+  let l:bNr = bufnr("%")
+  call Vi_marks_log ("=========== Vi_marks_load__ l:bNr ".l:bNr."")
   call Vi_marks_log ("  Vi_marks_load__ g:mainFnam = |".g:mainFnam."|")
 
   " exit if buffer != primary-buffer
-  "if a:fNam != g:mainFnam
-  if a:bNr != g:primBnr
+  "if l:fNam != g:mainFnam
+  if l:bNr != g:primBnr
     return
   endif
 
@@ -396,8 +408,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_saveFile - file beeing unloaded
 :function Vi_marks_saveFile ()
 
-  let a:bNr = bufnr("%")
-  call Vi_marks_log ("=========== Vi_marks_saveFile a:bNr = |".a:bNr."|")
+  let l:bNr = bufnr("%")
+  call Vi_marks_log ("=========== Vi_marks_saveFile l:bNr = |".l:bNr."|")
   call Vi_marks_log ("Vi_marks_saveFile g:mainFnam = |".g:mainFnam."|")
 
   " do nothing while reLoad bookmark-buffer
@@ -410,8 +422,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
     return
   endif
 
- let a:fNam = expand("%:t")
- call Vi_marks_log ("Vi_marks_saveFile fNam = |".a:fNam."|")
+ let l:fNam = expand("%:t")
+ call Vi_marks_log ("Vi_marks_saveFile fNam = |".l:fNam."|")
  call Vi_marks_log ("Vi_marks_saveFile g:marksFnam = |".g:marksFnam."|")
  call Vi_marks_log ("Vi_marks_saveFile g:primBnr = |".g:primBnr."|")
  call Vi_marks_log ("Vi_marks_saveFile g:marksBnr = |".g:marksBnr."|")
@@ -420,14 +432,14 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
  call Vi_marks_log ("Vi_marks_saveFile statReadBmf = ".g:statReadBmf)
 
   " for q in BM-window
-  if a:bNr == g:marksBnr
+  if l:bNr == g:marksBnr
     " bookmarkWindow is active; close
     call Vi_marks_showOff ()
     return
   endif
 
-  "if a:fNam == g:mainFnam
-  if a:bNr == g:primBnr
+  "if l:fNam == g:mainFnam
+  if l:bNr == g:primBnr
     " closing primary-buffer
     if g:marksStatOpen == '1'
       " close bookmarkFile (remove from file vi-bookmarks_fList)
@@ -461,10 +473,16 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 "================ INIT =====================================
 " define the directory for the bookmark-files
 let g:bmDir = "${HOME}/.vim/bookmarks/"
-call Vi_marks_log ("=========== vi-bookmarks.vim bmDir = |".g:bmDir."|")
 
 " create ~/.vim/bookmarks/ if necessary
 let irc = system("mkdir -p " . g:bmDir)
+
+" kill test-outputfile
+let cmd1 = "rm -f " . g:bmDir . "vim.out"
+let cmd1 = "rm -f ${HOME}/.vim/vim.out"
+let irc = system(cmd1)
+
+call Vi_marks_log ("=========== vi-bookmarks.vim bmDir = |".g:bmDir."|")
 
 let g:mainFnam = ""
 let g:marksFnam = ""
@@ -488,9 +506,10 @@ let g:statReadBmf = 0
 " remove the following \n
 "let g:marksFnam = substitute(g:marksFnam, "\n", "", "")
 
+" exit vi - remove split-buffer
 :autocmd BufReadPre * call Vi_marks_loadFile0()
 :autocmd BufUnload * call Vi_marks_saveFile()
-":autocmd VimLeave * call Vi_marks_saveFile()
+:autocmd VimLeave * call Vi_marks_leave()
 
 " inhibit message bookmark-window-content changed
 :set autoread
