@@ -1,5 +1,11 @@
 " vi-bookmarks - for documentation see ~/.vim/vi-bookmarks_README.txt
 "
+" MODIF:
+" 2025-10-27  autocmd VimLeave added. RF.
+" 2022-12-29  change split -> sview; RF.
+" 2021-08-16  update bookmarks without having to save modified mainfile. RF.
+" 2021-08-15  enable correct open if mainFile opened via tag (-t) RF.
+" 2021-08-10  RF.
 ":::::::::::::::::::::::::::::::::::::::::::::::::
 "initialize vi-bookmarks.vim     // enter vim
 "g:mainFnam         filename of editfile
@@ -35,12 +41,6 @@
 "=================================================
 " vi-bookmarks.c   -> vi-bookmarks64              executable (Vi_marks_exe())
 "
-" MODIF:
-" 2025-10-25  autocmd VimLeave added. RF.
-" 2022-12-29  change split -> sview; RF.
-" 2021-08-16  update bookmarks without having to save modified mainfile. RF.
-" 2021-08-15  enable correct open if mainFile opened via tag (-t) RF.
-" 2021-08-10  RF.
 "=================================================
 
 
