@@ -1,5 +1,6 @@
 /*   Add or delete Bookmark                           RF  2004-06-01
 
+
 Add or delete Bookmark in Bookmarkfile $HOME/.vim/bookmarks/<filename>
 
 For documentation see ~/.vim/vi-bookmarks_README.txt
@@ -14,17 +15,26 @@ cl -o vi-bookmarks.exe vi-bookmarks.c
 
 
 ==================================
+MODIF:
+2025-10-25 warning:-Wformat-overflow fixed. RF.
+2025-05-23 update for UBU 22. RF.
+2021-07-31 rewrite. RF.
+2018-09-04 new version with vi-marks. RF.
+2004-06-19 MS-Win-Version korr. RF.
+2004-07-09 Created. RF.
+
+==================================
 FILES:
 ~/.vim
   vi-bookmarks_README.txt  using, installation
-  vi.sh             resolv <filename>:<lineNr>;  call vim -N $*
-  vi-bookmarks.vim  calls executable vi-bookmarks64
-  vi-bookmarks.c    compile, link -> executable vi-bookmarks64
-  vim.out           logfile (if enabled)
+  vi.sh                    resolv <filename>:<lineNr>;  call vim ..
+  vi-bookmarks.vim         calls executable vi-bookmarks64
+  vi-bookmarks.c           compile, link -> executable vi-bookmarks64
+  vim.out                  logfile (if enabled)
 
 ~/.vim/bookmarks
-  vi-bookmarks_fList   filenames with refCount being modified
-  vi-bookmarks_fnam    temp-file (name of file modified last)
+  vi-bookmarks_fList       filenames with refCount being modified
+  vi-bookmarks_fnam        temp-file (name of file modified last)
   <bookmarkfiles>
 
 //================================================================
@@ -41,65 +51,49 @@ marks_load  __MARKS_LOAD__   - enter new file
   write afNam into file vi-bookmarks_fList into line sessNr
 
 main - __MARKS__
-  in: sessNr and fnTxt = text to add/remove in active-bookmark-file
+  in: sessNr 
   get filename of active-bookmark-file from sessNr
+  get text to add/remove from file vi-bookmarks_txtl_<sessNr> (get_fnTxt())
   add or remove fnTxt in active-bookmark-file
 
 marks_save  __MARKS_SAVE__  exit-file <sessNr>
   in: sessNr
-  clear line nr sessNr in file vi-bookmarks_fList (change to "-")
+  clear line nr sessNr in file vi-bookmarks_fList
 
 
 //================================================================
-main-Input:
-Parameter-1:
-  __MARKS__               add new bookmark
-  __MARKS_LOAD__
-  __MARKS_SAVE__
-Parameter-2:
-  sessNr         session-number  for all Parameter-1;
-Parameter-3:
-  mfNam          filename, only if Parameter-1 is __MARKS_LOAD__
-
-
-..................................
 main // Add or delete Bookmark in Bookmarkfile
   // in: par1=Filename, par2=LineNr, par3=Linetext
 ..................................
-marks_load        // :417 user has opened new file
+marks_load        // user has opened new file
   get_safNam        // get sfNam = safe filename Bookmarkfile;
   marks_lst_wr__    // :620
   get_fNr           // :298 get nr of active copies of file <sfNam>
 
 ..................................
-__MARKS__   main :195
-  get_fnTxt      // get fnTxt = bookmarkText
-  get_bfNam :840 // get bfNam = full filename of active-bookmarkfile
+__MARKS__         // main :195
+  get_fnTxt         // get fnTxt = bookmarkText
+  get_bfNam :840    // get bfNam = full filename of active-bookmarkfile
 
 ..................................
-marks_save :453
+marks_save        // :453
 
 
 //================================================================
-Test exe:
+Test:
 
-// open new session # 123
-~/.vim/vi-bookmarks64 __MARKS_LOAD__ 123 t1.c
+// open new session # 3
+~/.vim/vi-bookmarks64 __MARKS_LOAD__ 3 t1.c
 
-// add bookmark to session # 123
-echo " linetext in file t1.c .." > ~/.vim/bookmarks/vi-bookmarks_txtl_123
-~/.vim/vi-bookmarks64 __MARKS__ 123
+// add bookmark to session # 3
+echo " linetext in file t1.c .." > ~/.vim/bookmarks/vi-bookmarks_txtl_3
+~/.vim/vi-bookmarks64 __MARKS__ 3
 
-// close session # 123
-~/.vim/vi-bookmarks64 __MARKS_SAVE__ 123
+// close session # 3
+~/.vim/vi-bookmarks64 __MARKS_SAVE__ 3
 
 
 ==================================
-2021-08-10 RF.
-2004-07-09 . RF.
-2004-06-19 MS-Win-Version korr. RF.
-2018-09-04 new version with vi-marks. RF.
-2021-07-31 rewrite. RF.
 */
 
 
@@ -121,7 +115,7 @@ int  sessNr;                         // session-number
 
 char mfNam[256];                     // unmodified filename 
 char sfNam[256];                     // safe filename 
-char afNam[256];                     // filename active file (sfNam_refCount)
+char afNam[500];                     // filename active file (sfNam_refCount)
 char fnLst[256];                     // filename of file with names of active files
 FILE *fpLst;
 
@@ -164,7 +158,7 @@ FILE *fpTmp;
 
   int    i1, ii, tNr;
   FILE   *fpi, *fpo;
-  char   fnTxt[256], lCmd[256],
+  char   fnTxt[512], lCmd[256],
          s1[400], bfNam[256],
          *p0, *p1, *p2;
 
@@ -214,6 +208,7 @@ FILE *fpTmp;
     log__(" fnTmp |%s|",fnTmp);
 
 
+  //----------------------------------------------------------------
   if(!strcmp (lCmd, "__MARKS_LOAD__")) return marks_load ();
   if(!strcmp (lCmd, "__MARKS_SAVE__")) return marks_save ();
 
@@ -230,9 +225,11 @@ FILE *fpTmp;
   get_fnTxt (fnTxt);
     log__("fnTxt = |%s|", fnTxt);
 
-  // get bfNam = filename active-bookmarkfilename
+  // get bfNam = filename active-bookmarkfilename and -
+  // write fNam into file vi-bookmarks_fnam
   get_bfNam (bfNam);
     log__("bfNam = |%s|", bfNam);
+    log__("fnTmp = |%s|", fnTmp);
 
   //----------------------------------------------------------------
   // add or delete fnTxt in file bfNam
@@ -240,51 +237,58 @@ FILE *fpTmp;
   // open fnTmp for write
   if((fpo = fopen (fnTmp, "w")) == NULL) return -1;
 
-  ii = 1;
+  ii = 1;  // add tag fnTxt
   tNr = 0;
+
 
   // open bfNam for read
   if((fpi = fopen (bfNam, "r")) == NULL) {
-    goto L_9;
+    fprintf(fpo,"--empty--\n");
+    fclose (fpo);
+    return 0;
   }
 
-
+  // read bfNam, write fnTmp; 
   while (!feof (fpi)) {
     if(fgets (s1, 256, fpi) == NULL) break;
     UTX_CleanCR (s1);              // remove following CR,Lf, ..
-      // log__(" tNr= %d s1 = |%s|",tNr,s1);
-    if(!strcmp(s1, "--empty--")) continue;
+      log__("__MARKS__ tNr= %d s1 = |%s|",tNr,s1);
+    if(strcmp(s1, "--empty--") == 0) continue;            // skip tag
     // if line already exists, delete line
     i1 = strlen(s1);  // fnTxt has one blank more !
-    if(!strncmp(s1, fnTxt, i1)) { ii = 0; continue;}
+    if(strncmp(s1, fnTxt, i1) == 0) { ii = 0; continue;}  // tag exists - remove it;
     // copy existing bookmark
+      log__(" tNr= %d - copy tag |%s|",tNr,s1);
     fprintf(fpo,"%s\n",s1);
     ++tNr;
   }
 
   fclose (fpi);
+    log__(" tNr= %d ii=%d",tNr,ii);
 
-  // add new tag
-  L_9:
+  // add new tag fnTxt
   if(ii) {
     // ii=1: bookmark not yet exists; write
-      // log__(" add tag = |%s|",fnTxt);
+      log__(" add tag = |%s|",fnTxt);
     fprintf(fpo,"%s\n", fnTxt);
     ++tNr;
   }
 
-  if(tNr == 0) {
-    fprintf(fpo,"--empty--\n");
-    ++tNr;
-  }
+
+  // if(tNr == 0) {
+    // fprintf(fpo,"--empty--\n");
+    // ++tNr;
+  // }
 
   fclose (fpo);
 
 
-  remove (bfNam);
-  rename (fnTmp, bfNam);
+  //----------------------------------------------------------------
+  L_exit:
+    remove (bfNam);
+    rename (fnTmp, bfNam);
 
-  return 0;
+    return 0;
 
 }
 
@@ -422,7 +426,7 @@ FILE *fpTmp;
   irc = 0;
 
   L_exit:
-    log__(" ex-marks_fnam_wr irc=%d |%s|",irc);
+    log__(" ex-marks_fnam_wr irc=%d",irc);
   return irc;
 
 }
@@ -437,14 +441,14 @@ FILE *fpTmp;
 //   mfNam   filename in editor
 
   int    irc, fNr, i1;
-  char   ffNam[256];
-  char   s1[256], s2[400];
+  char   ffNam[500];                 // full filename
+  char   s1[520], s2[1100];
 
   log__ ("===============================");
   log__ ("marks_load sessNr=%d mnNam=|%s|",sessNr,mfNam);
 
   // make sure directory mfDir "~/.vim/bookmarks/" exist ..
-  sprintf(s2,"mkdir -p \"%s%s\"", getenv("HOME"), mfDir);
+  snprintf(s2, 400, "mkdir -p \"%s%s\"", getenv("HOME"), mfDir);
   system (s2);
 
   // create file fnLst (vi-bookmarks_fList) - if not yet exists -
@@ -963,12 +967,12 @@ FILE *fpTmp;
 //================================================================
 // copy Tmp -> Lst;
 
-  char   s1[512];
+  char   s1[520];
 
 
   log__("marks_lst_wr_Tmp2Lst");
 
-  sprintf(s1,"cp -f %s %s", fnTmp, fnLst);
+  sprintf(s1, "cp -f %s %s", fnTmp, fnLst);
   system (s1);
 
   return 0;
@@ -1062,15 +1066,15 @@ FILE *fpTmp;
 //================================================================
   int get_bfNam (char *bfNam) {
 //================================================================
-// get filename of the active bookmarkfilename
+// Output:
+//   bfNam         maxSiz 256
+// get filename of the active bookmarkfilename and -
+// write fNam into file vi-bookmarks_fnam
 
-  int    irc, lNr;
-  char   s1[256], fnfn[256], sNr[8];
+  int    irc, ii;
+  char   s1[256], fnfn[256], *p1;
 
-  sprintf(sNr, "%d", sessNr);
-  lNr = strlen(sNr);
-
-  log__("get_bfNam |%s|", sNr);
+  log__("get_bfNam |%d|", sessNr);
 
   // get line nr <sessNr> out of file vi-bookmarks_fList
   if((fpLst = fopen (fnLst, "r")) == NULL) {
@@ -1080,23 +1084,33 @@ FILE *fpTmp;
   }
 
   // get s1 = fn
+  ii = 0;
   while (!feof (fpLst)) {
     if(fgets (s1, 256, fpLst) == NULL) break;
-    if(strncmp(s1, sNr, lNr)) continue;
+    if (ii != sessNr) { ++ii; continue; }
     UTX_CleanCR (s1);
     break;
   }
 
   fclose (fpLst);
 
+	  // TESTBLOCK
+		printf("get_bfNam s1 = |%s|\n",s1);
+		// END TESTBLOCK
+
+
+  // cut sessNr from filename
+  p1 = strchr(s1, ' ');
+	if(p1 == NULL) {log__("get_bfNam ERR1"); return -1;}
+  ++p1,    // skip ' '
 
   // get full-fn
-  ++lNr;
-  sprintf(bfNam, "%s%s%s", getenv("HOME"), mfDir, &s1[lNr]);
+  sprintf(bfNam, "%s%s%s", getenv("HOME"), mfDir, p1);
+  UTX_CleanCR (bfNam);
 
 
-  //// write fNam into file vi-bookmarks_fnam
-  //irc = marks_fnam_wr (bfNam);
+  // write fNam into file vi-bookmarks_fnam
+  irc = marks_fnam_wr (bfNam);
 
 
   L_exit:
@@ -1145,13 +1159,18 @@ FILE *fpTmp;
 //================================================================
   void log__ (char* sFmt, ...) {
 //================================================================
-  char    s1[256], s2[256];
+  char    s1[1024], s2[1600];
   va_list va;
 
   va_start(va,sFmt);
   vsprintf (s1, sFmt, va);
   va_end (va);
     // printf("log %s\n",s1);
+
+  // TEST ONLY
+	// printf("%s\n",s1);
+	// return;
+	// TEST END
 
 
   // add into file ~/.vim/vim.out

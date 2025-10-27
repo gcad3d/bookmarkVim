@@ -1,2 +1,2 @@
-V-1.00.00-0 / 2025-10-25
-- Bugfixes, Neovim-support, documentaion improved.
+V-1.00.00-2 / 2025-10-27
+- warning:-Wformat-overflow fixed. RF.
