@@ -1,146 +1,196 @@
-" vi-bookmarks - for documentation see ~/.vim/vi-bookmarks_README.txt
+" vi-bookmarks - bookmark-tool for console-editor nvi (vi, vim).
+" franz.reiter cadcam.co.at
 "
 " MODIF:
+" 2025-11-05  rewrite, update for NVIM v0.6.1. RF.
 " 2025-10-27  autocmd VimLeave added. RF.
 " 2022-12-29  change split -> sview; RF.
 " 2021-08-16  update bookmarks without having to save modified mainfile. RF.
 " 2021-08-15  enable correct open if mainFile opened via tag (-t) RF.
 " 2021-08-10  RF.
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"initialize vi-bookmarks.vim     // enter vim
+"VARIABLES:
 "g:mainFnam         filename of editfile
-"g:marksFnam        bookMarkfilename (/home/fwork/.vim/bookmarks/t1_c_0)
-"g:marksStatOpen    0 = bookMarkfilename not valid; 1 = g:marksFnam is open;
-"g:primBnr          bufferNr of primary buffer
-"g:marksBnr         0 = bookmark-buffer does not exist; else exists;
+"g:marksFnam        g:mainFnam with directory - eg /home/xy/.vim/bookmarks/xyz
+"g:primWnr          bufferNr of primary buffer
+"g:bookWnr          bufferNr of bookmark-bufferi; 0 = does not exist;
 "g:marksStatVis     0 = bookmark-buffer is hidden; 1 = is visible;
+"g:marksStatOpen    0=open-bookmarkBuffer-NOT-active; 1=open-bookmarkBuffer-active;
+"g:markNewFile      1=entering-new-source; 0=not
 "
 ":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_loadFile0      //      enter buffer
+"FUNCTIONS:
+"Vi_marks_loadFile      //      enter buffer
 "
-":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_showToggle  ("bv")                     // view | hide bookmark-window
-"  Vi_marks_load__       //      write file vi-bookmarks_fnam, get as g:marksFnam
+"Vi_marks_showToggle  ("bv")     view or hide bookmark-window
 "  Vi_marks_showCreate   //      create bookmark-buffer
 "  Vi_marks_showOn       //      set bookmark-buffer visible
 "  Vi_marks_showOff      //      set bookmark-buffer hidden
 "
-":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_toggle     ("bb")               // [create BW and] add active line
-"  Vi_marks_load__
+"Vi_marks_toggle     ("bb")      [create BW and] add or remove active line
 "  Vi_marks_reRead       //      
 "
-":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_del        ("bd")              // delete all bookmarks
+"Vi_marks_edit       ("be")      edit bookmarkfile; save with ":w"; return with Ctrl-O;
+""
 "
-":::::::::::::::::::::::::::::::::::::::::::::::::
-"Vi_marks_saveFile               
+"Vi_marks_quit                           // closing mainWin close bookWin also
 "
-" g:marksFnam is full-filename; expand("%:t") gives NOT full-filename 
-" - so use bufferNr ..
 "=================================================
 " vi-bookmarks.c   -> vi-bookmarks64              executable (Vi_marks_exe())
-"
+" build executable with:
+" cc -o vi-bookmarks`getconf LONG_BIT` vi-bookmarks.c
+" TEST: check logfile with gedit ~/.vim/vim.out (see Vi_marks_log and Dump_all)
 "=================================================
 
 
-"echo "vi-bookmarks.vim ..."
-
-" set bb (2 times key 'b') to add active line to bookmarks and display
+" bb (2 times key 'b') to add active line to bookmarks and display
 "   if line already exists - delete it !
 nnoremap <silent> bb :call Vi_marks_toggle()
-" set bv (key b then key v) to show or hide the bookmarkFile
+
+" bv (key b then key v) to show or hide the bookmarkFile
 nnoremap <silent> bv :call Vi_marks_showToggle()
-" set bd = delete all bookmarks of active file (only source-window)
-nnoremap <silent> bd :call Vi_marks_del()
-" bb or dd or del-key in bookmark-window deletes bookmark
+
+" be (keys b and e) edit bookmarkFile
+nnoremap <silent> be :call Vi_marks_edit()
+
+
 " double-click or Enter-key in bookmark-window jumps to bookmark
+nnoremap <silent> bv :call Vi_marks_showToggle()
+
 " tab-key = change cursor between source-window / bookmark-window 
 nnoremap <silent> <Tab> :call Vi_marks_winToggle()
-
 
 
 
 "================ functions =====================================
 
 "------------------------------------------------ 
-" get g:marksFnam = full filename bookmarksfile
-:function Vi_marks_get_marksFilnam ()
+" edit bookmarkFile
+:function Vi_marks_edit ()  
+  
+  call Dump_all("   _edit-in")
 
-  for line in readfile($HOME . "/.vim/bookmarks/vi-bookmarks_fnam", "", 1)
-    let g:marksFnam = line
-  endfor
+  if g:marksStatVis == 1
+    call Vi_marks_showOff ()
+  endif
 
-    call Vi_marks_log (" ex-Vi_marks_get_marksFilnam |".g:marksFnam."|")
+  let cmd1 = ":edit ".g:marksFnam
+    call Vi_marks_log ("    ".cmd1)
+  execute cmd1
+  execute ":setlocal ma"
+  execute ":setlocal noswapfile"
+
+  call Dump_all("        _edit-ex")
+
+:endfunction
+
+
+
+"------------------------------------------------ 
+" enter new primaryWindow
+" after Ctrl-O (return from tagFile): remove bookmarkWin;
+:function Vi_marks_enterW ()
+
+  call Dump_all("   _enterW-in")
+
+  " if entering bmFile
+  if g:marksStatOpen == 1
+    if g:bookWnr == 0
+      let g:bookWnr = bufnr("%")
+        call Dump_all("        _enterW-ex1")
+      return
+    endif 
+  endif 
+
+  " after Ctrl-O (return from tagFile): remove bookmarkWin;
+  if g:mainFnam != expand("%:t")
+    "let g:StatFilClo = 1
+    if g:primWnr != bufnr("%")
+      " update g:primWnr g:mainFnam g:marksFnam
+      call Vi_marks_newPrimWin ()
+      " remove bookmarkWin
+      if g:marksStatVis == 1
+        call Vi_marks_showOff ()
+      endif
+    endif
+      call Dump_all("        _enterW-ex2")
+    return
+  endif
+
+  "let g:StatFilClo = 0
+  call Dump_all("        _enterW-ex0")
+
+:endfunction
+
+
+
+"------------------------------------------------ 
+" get vars after changing the primWin
+:function Vi_marks_newPrimWin ()
+
+  call Dump_all("   _newPrimWin-in")
+
+  let g:primWnr = bufnr("%")
+  let g:mainFnam = expand("%:t")
+  "let g:marksFnam = "~/.vim/bookmarks/".g:mainFnam
+  let g:marksFnam = g:bmDir.g:mainFnam
+
+  call Dump_all("        _newWin-ex")
 
 :endfunction
 
 
 "------------------------------------------------ 
 " Vi_marks_toogle - add or delete bookmark; display bookmarkFile ("bb")
-" also from BW-window with Del-key or dd
 :function Vi_marks_toggle ()
 
-  call Vi_marks_log ("========= Vi_marks_toggle-marksStatOpen=".g:marksStatOpen)
-  call Vi_marks_log ("Vi_marks_toggle g:marksBnr = ".g:marksBnr)
+  call Vi_marks_log ("---------------------------------------\n")
+  call Dump_all("== _toggle-in")
 
-  " if bookmarks-file not loaded: do "__MARKS_LOAD__"
-  if g:marksStatOpen == '0'
-    call Vi_marks_load__()
-  endif
-
-  " write active line into file ~/.vim/bookmarks/vi-bookmarks.dat
-  let cmd1 = ":.write!~/.vim/bookmarks/vi-bookmarks_txtl_" . g:marksSessNr
-  execute cmd1
-
-  " start vi-bookmarks-executable with command "__MARKS__"
-  call Vi_marks_exe ("__MARKS__", "_")
-
-  " test if bookmark-buffer exists
-  if g:marksBnr == '0'
-   " bookmark-buffer does not exist; create bookmark-buffer and make active
-    call Vi_marks_showCreate ()
+  " skip bb in bookWin
+  if bufnr("%") == g:bookWnr
     return
   endif
 
+  if bufnr("%") != g:primWnr
+    call Vi_marks_log("XXXXXXXXXXXXXX new win !!!!!!!!!!!")
+  endif
+
+  let g:marksStatOpen = 1
+
+  " write active line into file ~/.vim/bookmarks/vi-bookmarks.txtl
+  let cmd1 = ":sil.write!".g:bmDir."vi-bookmarks_txtl"
+  execute cmd1
+
+  " add (or remove (if already exists) cmd2 in file g:mainFnam
+  " start vi-bookmarks-executable with parameters (<filNam> "modify")
+  call Vi_marks_exe (g:mainFnam, "modify")
+
   " test if bookmark-window is shown
   if g:marksStatVis == '0'
-   call Vi_marks_showOn ()
-   return
+    call Vi_marks_showOn ()
+    let g:marksStatOpen = 0
+    call Dump_all("== _toggle-ex2")
+    call Vi_marks_log ("---------------------------------------\n")
+    return
   endif
-
-  " if bookmark-window is active -
-  let l:bNr = bufnr("%")
-  call Vi_marks_log ("Vi_marks_toggle l:bNr = ".l:bNr)
-  if l:bNr == g:marksBnr
-    " go back into mainWindow
-    execute ":wincmd w"
-  endif
-
 
   " reRead bookmarks
   call Vi_marks_reRead ()
+
+  call Dump_all("== _toggle-ex1")
+  call Vi_marks_log ("---------------------------------------\n")
 
 :endfunction
 
 
 "------------------------------------------------ 
-" Vi_marks_exe - start vi-bookmarks-executable with 3 parameters
+" Vi_marks_exe - start vi-bookmarks-executable with 2 parameters
 :function Vi_marks_exe (exCmd1, exCmd2)
- " get bmExe = filename of vi-marks-exe
-   " Linux -
-  let bmExe = $HOME . "/.vim/vi-bookmarks" . system("getconf LONG_BIT")
-  " MS-Win
-  "let bmExe = $VIMRUNTIME . "\\Bookmark.exe"
-  let bmExe = substitute(bmExe, "\n", "", "g")
-  "echo "bmExe = |" . bmExe . "|"
-  "call Vi_marks_log (bmExe)
 
-  let cmd1 = bmExe . " " . a:exCmd1 . " " . g:marksSessNr . " " . a:exCmd2
-  call Vi_marks_log ("Vi_marks_exe |".cmd1."|")
- " following line does not work wit lines starting with "//"
-  "call Vi_marks_log ("cmd1=|" . cmd1 . "|")
- " fix Bookmarkfile (add or delete Bookmark-line or laod or save file)
+  " fix Bookmarkfile (add or delete Bookmark-line or laod or save file)
+  let cmd1 = g:bmExe." ".a:exCmd1." ".a:exCmd2
+  call Vi_marks_log ("    Vi_marks_exe |".cmd1."|")
   let irc = system(cmd1)
 
 :endfunction
@@ -149,12 +199,12 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 "------------------------------------------------ 
 " Vi_marks_winToggle - change window
 :function Vi_marks_winToggle ()
-  " if only one window exit
+  " if bookMarWin is not active -
   if g:marksStatVis == '0'
     return
   endif
   " if source-window is active
-  if winnr() == 1
+  if bufnr("%") == g:primWnr
     execute ":wincmd j"
   else
     execute ":wincmd w"
@@ -166,32 +216,59 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showToggle - show/hide bookmarks ("bv")
 :function Vi_marks_showToggle ()
 
-  call Vi_marks_log (". . . . .")
-  call Vi_marks_log ("======== Vi_marks_showToggle marksStatOpen ".g:marksStatOpen)
+  call Vi_marks_log ("---------------------------------------\n")
+  call Dump_all("== showToggle-in")
 
-  " test if bookMarkfilename is valid
-  if g:marksStatOpen == '0'
-   " register new session (sessNr) and get bookMarkfilename g:marksFnam
-   call Vi_marks_load__()
+  if bufnr("%") != g:primWnr
+    call Vi_marks_newPrimWin()
   endif
 
- " test if bookmark-buffer exists
-  call Vi_marks_log ("_showToggle g:marksBnr = ".g:marksBnr)
-  if g:marksBnr == '0'
+  let g:marksStatOpen = 1
+
+  " if bookmark-buffer is active: hide bookmark-window
+  if g:marksStatVis == '1'
+    call Vi_marks_showOff ()
+    let g:marksStatOpen = 0
+    call Dump_all("== showToggle-ex2")
+    call Vi_marks_log ("---------------------------------------\n")
+    return
+  endif 
+
+  " start vi-bookmarks-executable with parameters (<filNam> "show")
+  call Vi_marks_exe (g:mainFnam, "show")
+
+  " activate bookmark-buffer
+  if g:bookWnr == '0'
    " bookmark-buffer does not exist; create bookmark-buffer
     call Vi_marks_showCreate()
-    return
+  else
+    call Vi_marks_showOn()
   endif
 
-  " bookmark-buffer exists; test if active (how many active windows)
-   call Vi_marks_log ("_showToggle  g:marksStatVis = ".g:marksStatVis)
-   if g:marksStatVis == '0'
-    " bookmark-buffer exists but is not yet active; open
-     call Vi_marks_showOn ()
-   else
-    " bookmark-buffer is active; hide hide bookmark-window
-     call Vi_marks_showOff ()
-   endif
+  let g:marksStatOpen = 0
+
+  call Dump_all("== showToggle-ex1")
+  call Vi_marks_log ("---------------------------------------\n")
+
+:endfunction
+
+
+"------------------------------------------------ 
+" Vi_marks_delLn_bW -  delete active line in bookWin
+:function Vi_marks_delLn_bW ()
+
+  call Dump_all("== delLn_bW-in")
+
+  " write active line into file 
+  "let cmd1 = ":sil.write!~/.vim/bookmarks/vi-bookmarks_txtl"
+  let cmd1 = ":sil.write!".g:bmDir."vi-bookmarks_txtl"
+  execute cmd1    
+
+  " remove line in file txtl
+  call Vi_marks_exe (g:mainFnam, "modify")
+
+  " reload bW
+  call Vi_marks_reRead ()
 
 :endfunction
 
@@ -200,27 +277,39 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showCreate - create bookmark-buffer and window and make active
 :function Vi_marks_showCreate ()
 
-  "call Vi_marks_log (" Vi_marks_showCreate |".g:marksFnam."|")
+  call Dump_all("== showCreate-in")
+
+  " ignore if bookWin has cursor
+  if bufnr("%") == g:bookWnr
+    return
+  endif
 
   " open bookmarkfile in new window below with 8 lines
   "let cmd1 = ":8 sview " . g:marksFnam
   let cmd1 = ":8 split " . g:marksFnam
-    call Vi_marks_log (" _showCreate |" . cmd1 . "|")
+    call Vi_marks_log ("   _showCreate |" . cmd1 . "|")
   execute cmd1
 
  " define key enter only for bookmark-window
   nnoremap <buffer> <silent> <Enter> :call Vi_marks_jump()
   nnoremap <buffer> <silent> <2-LeftMouse> :call Vi_marks_jump()
-  nnoremap <buffer> <silent> <Del> :call Vi_marks_toggle()
-  nnoremap <buffer> <silent> dd :call Vi_marks_toggle()
- " get g:marksBnr = nr of the bookmark-buffer
-  let g:marksBnr = bufnr("%")
-   call Vi_marks_log (" Vi_marks_showCreate |".g:marksBnr."| created ..")
-  "execute ":setlocal syntax=off"
+  nnoremap <buffer> <silent> <Del> :call Vi_marks_delLn_bW()
+  nnoremap <buffer> <silent> q :call Vi_marks_showOff()
+" nnoremap <buffer> <silent> dd :call Vi_marks_toggle()
+
+  let g:bookWnr = bufnr("%")
+
+  " no colors in bW
+  execute ":setlocal syntax=off"        
   execute ":setlocal nomodifiable"
-  " back into source-window
+  execute ":setlocal noswapfile"
+
+  " back into source-window  w or k
   execute ":wincmd w"
- let g:marksStatVis = '1'
+
+  let g:marksStatVis = '1'
+
+  call Dump_all("== showCreate-ex1")
 
 :endfunction
 
@@ -229,19 +318,24 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showOn - redisplay bookmark-window
 :function Vi_marks_showOn ()
 
-   "call Vi_marks_log (" Vi_marks_showOn |" . g:marksBnr . "|")
+  call Dump_all("== showOn-in")
 
  if g:marksStatVis == '0'
-   "let cmd1 =  ":8 sview | buffer " . g:marksBnr
+   "let cmd1 =  ":8 sview | buffer " . g:bookWnr
    let cmd1 = ":8 split " . g:marksFnam
     "call Vi_marks_log (" _showOn |" . cmd1 . "|")
    execute cmd1
-   "execute ":setlocal syntax=off"
+   execute ":setlocal syntax=off"
    execute ":setlocal nomodifiable"
+   execute ":setlocal noswapfile"
+   " TODO: inhibit select text with mouse
    " back into source-window
    execute ":wincmd w"
    let g:marksStatVis = '1'
+
  endif
+
+  call Dump_all("== showOn-ex")
 
 :endfunction
 
@@ -250,17 +344,20 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 " Vi_marks_showOff - hide bookmark-window
 :function Vi_marks_showOff ()
 
+ call Vi_marks_log (" Vi_marks_showOff vis = ".g:marksStatVis." Wnr = ".g:bookWnr)
+
  if g:marksStatVis == '1'
-   call Vi_marks_log (" Vi_marks_showOff |" . g:marksBnr . "|")
    " goto bookmarkWindow
    execute ":wincmd j"
    " hide the bookmarkWindow
-   let cmd1 =  ":quit!"
-   "let cmd1 =  ":" . g:marksBnr . "quit!"
-   "let cmd1 =  ":bunload! " . g:marksBnr
+"  let cmd1 =  ":quit!"
+"  let cmd1 =  ":" . g:bookWnr . "quit!"
+   let cmd1 =  ":bunload! " . g:bookWnr
    execute cmd1
+   " goto window up
+   execute ":wincmd w"
    let g:marksStatVis = '0'
-   let g:marksBnr = '0'
+   let g:bookWnr = '0'
  endif
 
 :endfunction
@@ -269,7 +366,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 "------------------------------------------------ 
 " Vi_marks_jump - jump to bookmark-line in source-window
 :function Vi_marks_jump ()
-"echo "Vi_marks_jump"
+
+  call Dump_all("   _jump-in")
 
  " get the active line -> lTxt
   let lTxt = getline(".")
@@ -295,176 +393,142 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 
 
 "------------------------------------------------ 
-" Vi_marks_del = delete all bookmarks of active file
-:function Vi_marks_del ()
- call Vi_marks_log ("================ Vi_marks_del")
- " only if bookmarkWindow is active
- if(g:marksStatVis == 1)
-   " only in source-window 
-   if winnr() == 1
-     " empty file (rm kills buffer/window)
-     let cmd1 = "echo --empty-- > " . g:marksFnam
-       call Vi_marks_log ("cmd1 = |" . cmd1 . "|")
-     let irc = system(cmd1)
-     " update bookmarks
-     call Vi_marks_reRead()
-   endif
- endif
-:endfunction
-
-
-"------------------------------------------------ 
 " Vi_marks_reRead - reRead bookmark-buffer
 :function Vi_marks_reRead ()
 
-  call Vi_marks_log ("Vi_marks_reRead g:marksFnam |".g:marksFnam."|")
-  call Vi_marks_log ("Vi_marks_reRead marksStatVis = ".g:marksStatVis)
+  call Dump_all("   _reRead-in")
 
 
   if g:marksStatVis == '1'
-
-    let g:statReadBmf = 1
-
+    " goto window below
     execute ":wincmd j"
     execute ":edit!"
-    execute ":wincmd w"
+    " goto window below
+    execute ":wincmd k"
 
-"   " goto bookmark-window, reRead
-"   let cmd1 = ":b ".g:marksBnr
-"   execute cmd1
-"   let cmd1 = ":e ".g:marksFnam
-"   execute cmd1
-"   "execute ":setlocal syntax=off"
-"   " back into primary window
-"   let cmd1 = ":b ".g:primBnr
-"   execute cmd1
-"
-"   "let v1 = "lgetfile " . g:marksFnam
-"   "execute v1
-"   "lopen 6    " 6 = Nr of lines of quickfix-/errorfile
-
-    let g:statReadBmf = 0
   endif
 
-  call Vi_marks_log ("exit Vi_marks_reRead marksStatVis")
+  call Dump_all("   _reRead-ex")
 
 :endfunction
 
 
 "------------------------------------------------ 
-" Vi_marks_loadFile0 - new file being loaded
-:function Vi_marks_loadFile0 ()
-
-  " get name of file to be loaded
-  let l:fNam = expand("%:t")
-  let l:bNr = bufnr("%")
-  call Vi_marks_log ("Vi_marks_loadFile0 l:fNam = |".l:fNam."|")
-  call Vi_marks_log ("Vi_marks_loadFile0 l:bNr = ".l:bNr)
-  call Vi_marks_log ("Vi_marks_loadFile0 g:primBnr = ".g:primBnr)
-
-  " exit if buffer != primary-buffer
-  if l:bNr != g:primBnr
-    return
-  endif
-
-  let g:mainFnam = l:fNam
-
-  " hide bmk-win if buftype is 'help'
-  "call Vi_marks_log ("Vi_marks_loadFile0 buftype = |" . &buftype . "|")
-  if &buftype == "help"
-   " if bmk-window is active: hide.
-   call Vi_marks_showOff ()
-  endif
-
+:function Dump_all (msg)
+  " comment out following line for activation
+  return
+  call Vi_marks_log (a:msg." StatVis ".g:marksStatVis." StatOpen = ".g:marksStatOpen." NewFile = ".g:markNewFile) 
+"." StatFilClo = ".g:StatFilClo)
+  call Vi_marks_log ("    mainFnam = ".g:mainFnam." fn = ".expand("%:t"))
+  call Vi_marks_log ("    bufnr = ".bufnr("%")." primWnr = ".g:primWnr." bookWnr = ".g:bookWnr)
+  call Vi_marks_log ("    ")
 :endfunction
 
 
 "------------------------------------------------ 
-" Vi_marks_load - new file to be used; called when bmk-win comes up
-:function Vi_marks_load__ ()
+" Vi_marks_loadFile - new file being loaded; get g:mainFnam;
+:function Vi_marks_loadFile ()
 
-  "let l:fNam = expand("%:t")
-  let l:bNr = bufnr("%")
-  call Vi_marks_log ("=========== Vi_marks_load__ l:bNr ".l:bNr."")
-  call Vi_marks_log ("  Vi_marks_load__ g:mainFnam = |".g:mainFnam."|")
+  call Dump_all("== loadFile-in")
 
-  " exit if buffer != primary-buffer
-  "if l:fNam != g:mainFnam
-  if l:bNr != g:primBnr
+  " skip all open of this file
+  if expand("%:t") == "vi-bookmarks.vim"
+    call Vi_marks_log ("      loadFile-skip bm.vim\n")
     return
   endif
 
-  call Vi_marks_exe ("__MARKS_LOAD__", g:mainFnam)
-
-  " get g:marksFnam = bookMarkfilename
-  call Vi_marks_get_marksFilnam ()
-
-  let g:marksStatOpen = '1'
-
-:endfunction
-
-
-"------------------------------------------------ 
-" Vi_marks_saveFile - file beeing unloaded
-:function Vi_marks_saveFile ()
-
-  let l:bNr = bufnr("%")
-  call Vi_marks_log ("=========== Vi_marks_saveFile l:bNr = |".l:bNr."|")
-  call Vi_marks_log ("Vi_marks_saveFile g:mainFnam = |".g:mainFnam."|")
-
-  " do nothing while reLoad bookmark-buffer
-  if g:statReadBmf == 1
-    return
-  endif
-
-  " exit if no mainFile yet
-  if g:mainFnam == ""
-    return
-  endif
-
- let l:fNam = expand("%:t")
- call Vi_marks_log ("Vi_marks_saveFile fNam = |".l:fNam."|")
- call Vi_marks_log ("Vi_marks_saveFile g:marksFnam = |".g:marksFnam."|")
- call Vi_marks_log ("Vi_marks_saveFile g:primBnr = |".g:primBnr."|")
- call Vi_marks_log ("Vi_marks_saveFile g:marksBnr = |".g:marksBnr."|")
- call Vi_marks_log ("Vi_marks_saveFile marksStatVis = ".g:marksStatVis)
- call Vi_marks_log ("Vi_marks_saveFile marksStatOpen = ".g:marksStatOpen)
- call Vi_marks_log ("Vi_marks_saveFile statReadBmf = ".g:statReadBmf)
-
-  " for q in BM-window
-  if l:bNr == g:marksBnr
-    " bookmarkWindow is active; close
-    call Vi_marks_showOff ()
-    return
-  endif
-
-  "if l:fNam == g:mainFnam
-  if l:bNr == g:primBnr
-    " closing primary-buffer
-    if g:marksStatOpen == '1'
-      " close bookmarkFile (remove from file vi-bookmarks_fList)
-      call Vi_marks_exe ("__MARKS_SAVE__",  "_")
-      " close bookmarkWindow
-      call Vi_marks_showOff ()
-      let g:marksStatOpen = '0'
+  " skip open bookmarksBuffer
+  if g:marksStatVis == 1
+    if bufnr("%") == g:bookWnr
+      call Vi_marks_log ("      loadFile-skip bW-is-open\n")
+      return
     endif
+  endif
+
+  " skip open primaryBuffer
+  if bufnr("%") == g:primWnr
+    call Vi_marks_log ("      loadFile-skip pW-is-open\n")
     return
   endif
+
+  " open primary-window
+  if g:primWnr == '0'
+    call Vi_marks_newPrimWin ()
+      call Dump_all("       loadFile-ex1")
+    return
+  endif
+
+  " skip open bmWin
+  if g:marksStatOpen == 1
+    if g:bookWnr == '0'
+      call Vi_marks_log ("      loadFile-skip open bW\n")
+      return
+    endif
+  endif
+
+
+  " entering new buffer (eg from edit tagFile)
+  call Vi_marks_log ("   loadFile new buf ".bufnr("%")."\n")
+  let g:markNewFile = 1
+  call Vi_marks_newPrimWin ()
+  " close bookmarkWin
+  call Vi_marks_showOff ()
+
+  let g:markNewFile = 0
+  call Dump_all("      loadFile-ex3")
 
 :endfunction
 
 
 "------------------------------------------------ 
-"" exit vim
-":function Vi_marks_leave ()
-"  call Vi_marks_log ("Vi_marks_leave")
-":endfunction
+" exit; close also bookWin
+:function Vi_marks_quit ()
+
+  call Dump_all("=== _quit-in")
+  
+  " skip it if in bookmarkWin;
+  if g:marksStatVis == 1
+    if bufnr("%") == g:bookWnr
+      return
+    endif
+  endif
+
+  " close bookmarkWin and exit
+  call Vi_marks_showOff ()
+  execute ":q"
+
+:endfunction
+
+
+"------------------------------------------------ 
+" exit from alternate-mainfile, eg tagFile
+:function Vi_marks_unload ()
+  call Dump_all("=== unload-in")
+
+  " ignore if leaving primWin for create bookWin
+  if g:marksStatOpen == 1
+    call Vi_marks_log ("      unload skip-leave-pW-or-bW\n")
+    return
+  endif
+
+  " if activating new primSrc: close bookWin if exists
+  if g:markNewFile == 1    " - bei Ctrl-O nicht gesetzt ..
+    if g:marksStatVis == '1'
+      call Vi_marks_showOff ()
+    endif
+    let g:markNewFile = 0
+    call Dump_all("      unload-ex2\n")
+    return
+  endif
+
+  call Dump_all("      unload-ex1")
+:endfunction
 
 
 "------------------------------------------------ 
 :function Vi_marks_log (msg)
-  " remove following line for activation
-  "return
+  " comment out following line for activation
+  return
   let irc = system("echo \"" . a:msg . " \" >> $HOME/.vim/vim.out")
 :endfunction
 
@@ -478,45 +542,52 @@ let g:bmDir = "${HOME}/.vim/bookmarks/"
 let irc = system("mkdir -p " . g:bmDir)
 
 " kill test-outputfile
-let cmd1 = "rm -f " . g:bmDir . "vim.out"
 let cmd1 = "rm -f ${HOME}/.vim/vim.out"
 let irc = system(cmd1)
 
 call Vi_marks_log ("=========== vi-bookmarks.vim bmDir = |".g:bmDir."|")
 
 let g:mainFnam = ""
-let g:marksFnam = ""
-let g:marksBnr = '0'
+let g:primWnr = '0'
+let g:bookWnr = '0'
 let g:marksStatOpen = '0'
 let g:marksStatVis = '0'
-let g:primBnr = bufnr("%")
-call Vi_marks_log ("  vi-bookmarks.vim g:primBnr = ".g:primBnr)
+let g:markNewFile = 0
+"let g:StatFilClo = 0
 
-"" get g:marksSessNr = number of active vim-processes
-"let g:marksSessNr = system("ps -C vim --no-heading -o pid | wc -l")
-
-let g:marksSessNr = system("echo $RANDOM")
+" get bmExe = filename of vi-marks-exe
+" Linux -
+let g:bmExe = "${HOME}/.vim/vi-bookmarks".system("getconf LONG_BIT")
+" MS-Win
+"let g:bmExe = $VIMRUNTIME . "\\Bookmark.exe"
 " remove the following \n
-let g:marksSessNr = substitute(g:marksSessNr, "\n", "", "")
-call Vi_marks_log ("  vi-bookmarks.vim g:marksSessNr = ".g:marksSessNr)
+let bmExe = substitute(g:bmExe, "\n", "", "g")
 
+" enter new file; also enter new tagFile; not WinEnter
+:autocmd BufReadPost * call Vi_marks_loadFile()
 
-let g:statReadBmf = 0
+" return from (eg-tag-)file; not BufUnload
+" cannot change from mainWin into bookWin ..
+:autocmd BufLeave * call Vi_marks_unload()
 
-" remove the following \n
-"let g:marksFnam = substitute(g:marksFnam, "\n", "", "")
+" exit vi - remove also split-buffer; only BufWinLeave WinClosed work ..
+:autocmd WinClosed * call Vi_marks_quit()
 
-" exit vi - remove split-buffer
-:autocmd BufReadPre * call Vi_marks_loadFile0()
-:autocmd BufUnload * call Vi_marks_saveFile()
-:autocmd VimLeave * call Vi_marks_leave()
+" enter new primaryWindow after Ctrl-O (return from tagfile);
+:autocmd BufWinEnter * call Vi_marks_enterW()
+
+" close boolmarkWin befor exit;
+:autocmd VimLeave * call Vi_marks_quit()
 
 " inhibit message bookmark-window-content changed
 :set autoread
 
 " use also for help-window
 :set splitbelow
+
 " do not substitute blanks by spaces for :.write!~/.vim/bookmarks/vi-bookmarks.dat
 :retab
 
+" activate testmode
+":set verbose=9
 " EOF
