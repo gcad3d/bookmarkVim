@@ -1,2 +1,3 @@
-V-1.00.01   / 2025-11-05
+V-1.00.02-1   / 2025-11-05
 - rewrite, update for NVIM v0.6.1. RF.
+- update README.md
