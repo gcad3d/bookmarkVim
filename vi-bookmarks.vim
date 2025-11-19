@@ -2,6 +2,8 @@
 " franz.reiter cadcam.co.at
 "
 " MODIF:
+" 2025-11-18  goto EOF in bookWin added; updates for nvi 0.0.5; RF.
+" 2025-11-06  Vi_marks_reRead: syntax off added (bb makes colored bmWin). RF
 " 2025-11-05  rewrite, update for NVIM v0.6.1. RF.
 " 2025-10-27  autocmd VimLeave added. RF.
 " 2022-12-29  change split -> sview; RF.
@@ -53,13 +55,13 @@ nnoremap <silent> bv :call Vi_marks_showToggle()
 " be (keys b and e) edit bookmarkFile
 nnoremap <silent> be :call Vi_marks_edit()
 
-
-" double-click or Enter-key in bookmark-window jumps to bookmark
-nnoremap <silent> bv :call Vi_marks_showToggle()
-
 " tab-key = change cursor between source-window / bookmark-window 
 nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 
+" bt TEST ONLY
+nnoremap <silent> bt :call Vi_marks_test()
+
+" double-click or Enter-key in bookmark-window jumps to bookmark
 
 
 "================ functions =====================================
@@ -299,6 +301,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
 
   let g:bookWnr = bufnr("%")
 
+  " goto eof
+  normal G
   " no colors in bW
   execute ":setlocal syntax=off"        
   execute ":setlocal nomodifiable"
@@ -325,6 +329,8 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
    let cmd1 = ":8 split " . g:marksFnam
     "call Vi_marks_log (" _showOn |" . cmd1 . "|")
    execute cmd1
+   " goto EOF
+   normal G
    execute ":setlocal syntax=off"
    execute ":setlocal nomodifiable"
    execute ":setlocal noswapfile"
@@ -403,6 +409,7 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
     " goto window below
     execute ":wincmd j"
     execute ":edit!"
+    execute ":setlocal syntax=off"
     " goto window below
     execute ":wincmd k"
 
@@ -522,6 +529,14 @@ nnoremap <silent> <Tab> :call Vi_marks_winToggle()
   endif
 
   call Dump_all("      unload-ex1")
+:endfunction
+
+
+"------------------------------------------------ 
+:function Vi_marks_test ()
+  let irc = system("echo \"Vi_marks_test \" >> $HOME/.vim/vim.out")
+  " TEST ONLY
+  normal G
 :endfunction
 
 

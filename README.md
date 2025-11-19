@@ -1,4 +1,4 @@
-# bookmarkVim    1.00.00        /  2025-10-25
+# bookmarkVim    1.00.00        /  2025-11-19
 
 ![](https://www.gcad3d.org/Bookmarks.png)
 
@@ -46,7 +46,7 @@ Cursor is in source-buffer:
     key  Tab
 
   jump into line of bookmark-buffer:
-    double-click onto linr in bookmark-buffer 
+    double-click onto line in bookmark-buffer 
     - or goto bookmark-buffer and click line
 
   goto bookmark-buffer:
@@ -93,13 +93,15 @@ cc -o vi-bookmarks`getconf LONG_BIT` vi-bookmarks.c
 # in vim do :scriptnames to find the vimrc
 
 # add the following line into the active .vimrc:
+# - if ~/vimrc not yet exists, it will be created -
 # to enable clicking into the bookmarks-buffer:
 echo ":set mouse=n" >> ~/vimrc
 # to activate the bookmarks-buffer:
 echo ":source ~/.vim/vi-bookmarks.vim" >> ~/vimrc
 
 # test it: (use vim or vi (vi = neovim))
-vim -u ~/vimrc ~/.vim/*.c
+vim ~/.vim/*.c
+## vim -u ~/vimrc ~/.vim/*.c
 # key b and then b - bookmark-buffer comes up and active line is displayed
 # go down some lines, key again bb - this line is also displayed below
 # double-click line in the bookmark-buffer to jump to bookmark
