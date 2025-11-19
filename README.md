@@ -75,33 +75,30 @@ Cursor is in bookmark-buffer:
 # prepare the vim-directory (if not yet exists)
 mkdir ~/.vim
 
-# clone bookmarkVim
+# clone bookmarkVim into new directory ~/bookmarkVim/
 cd
 git clone https://github.com/gcad3d/bookmarkVim
 
-# copy file vi-bookmarks.vim into directory ~/.vim
-cp bookmarkVim/vi-bookmarks.vim ~/.vim/.
-# copy file vi-bookmarks.c into directory ~/.vim
-cp bookmarkVim/vi-bookmarks.c ~/.vim/.
+# copy these files from ~/bookmarkVim into directory ~/.vim -
+cd ~/bookmarkVim/
+cp vi-bookmarks.vim vi-bookmarks.c README.md ~/.vim/.
+# vi-bookmarks.vim ist the vi-scriptFile;
 
+# vi-bookmarks.vim needs executable vi-bookmarks.c to add/delete in the bookmark-files
 # compile the executable (creates file vi-marks64 or vi-marks32)
 cd ~/.vim
 cc -o vi-bookmarks`getconf LONG_BIT` vi-bookmarks.c
-# vi-bookmarks.vim uses this executable to add/delete in the bookmark-files
 
-# now find the active .vimrc - usually ~/vimrc ($HOME/vimrc)
-# in vim do :scriptnames to find the vimrc
+# now find the active vimrc - for nvi now ~/.config/nvim/init.vim
+# - in vi do :scriptnames to find the vimrc
+# if no local ~/.config/nvim/init.vim exists it will be created -
+mkdir ~/.config/nvim/
+# add the following line to init.vim (or add to your rc-file) -
+# - to activate the bookmarks-buffer:
+echo ":source ~/.vim/vi-bookmarks.vim" >> ~/.config/nvim/init.vim
 
-# add the following line into the active .vimrc:
-# - if ~/vimrc not yet exists, it will be created -
-# to enable clicking into the bookmarks-buffer:
-echo ":set mouse=n" >> ~/vimrc
-# to activate the bookmarks-buffer:
-echo ":source ~/.vim/vi-bookmarks.vim" >> ~/vimrc
-
-# test it: (use vim or vi (vi = neovim))
-vim ~/.vim/*.c
-## vim -u ~/vimrc ~/.vim/*.c
+# test it: (use vi (vi = neovim))
+vi ~/.vim/*.c
 # key b and then b - bookmark-buffer comes up and active line is displayed
 # go down some lines, key again bb - this line is also displayed below
 # double-click line in the bookmark-buffer to jump to bookmark
@@ -109,8 +106,11 @@ vim ~/.vim/*.c
 # or key tab = enter bookmarks, go down, jump with enter-key
 # key b and v - bookmark-buffer is hidden.
 # key bv - bookmark-buffer comes up.
+# (keys bv or bb must be clicked quick)
 # See Bookmark-files:
 ls -l $HOME/.vim/bookmarks/
+
+# to view this file correct use a markdown viewer.
 ~~~
 
 

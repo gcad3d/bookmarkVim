@@ -1,5 +1,2 @@
-V-1.00.03-0   / 2025-11-19
-- update for NVIM v0.6.1. RF.
-- new: goto end-of-file in bookmark-window;
-- Problem missing  in vi-bookmarks.vim fixed (git config .. autocrlf false)
-- update README.md
+V-1.00.03-1   / 2025-11-19
+- update README.md - installation-instruction for NVIM v0.9. RF.
